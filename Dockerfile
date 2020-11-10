@@ -1,9 +1,16 @@
-# Build Container
-FROM golang:1.14-alpine AS build-env
-RUN apk add --no-cache --upgrade git openssh-client ca-certificates build-base libpcap libpcap-dev
-WORKDIR /go/src/app
+# BUILDER
+FROM golang:1.14 AS builder
+WORKDIR /app
+COPY . .
+RUN go get -d -v ./...
+RUN go build -o naabu ./v2/cmd/naabu/
 
-# Install
-RUN go get -u github.com/projectdiscovery/naabu/cmd/naabu
+# RUNNER
+FROM debian:buster
+RUN mkdir /app
+WORKDIR /app
+RUN apt update && apt install -y nmap
+COPY --from=builder /app/naabu /app/naabu
+COPY --from=builder /app/scripts /app/scripts
 
-ENTRYPOINT ["naabu"]
+ENTRYPOINT ["/app/naabu"]
